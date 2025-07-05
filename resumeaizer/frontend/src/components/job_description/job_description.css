@@ -1,0 +1,21 @@
+.job-description-input {
+  text-align: left;
+}
+
+.description-textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 200px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.character-count {
+  text-align: right;
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}

@@ -1,22 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import pdf_parser
+from routers import resume
 
-app = FastAPI()
+app = FastAPI(
+    title="ResumeAizer API",
+    description="API for processing resumes with job descriptions",
+    version="0.1.0"
+)
 
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(
-    pdf_parser.router,
-    prefix="/pdf",
-    tags=["PDF Processing"],
-    responses={404: {"description": "Not found"}}
-)
+app.include_router(resume.router, prefix="/api")
+
+@app.get("/")
+def read_root():
+    return {"message": "ResumeAizer API is running"}
