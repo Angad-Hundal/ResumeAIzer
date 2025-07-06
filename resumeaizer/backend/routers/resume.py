@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 @router.post("/process")
 async def process_resume(
-    resume: UploadFile = File(...),  # File parameter first
-    job_description: str = Form(...)  # Then Form parameter
+    resume: UploadFile = File(...),  
+    job_description: str = Form(...) 
 ):
     """
     Process resume PDF with job description
@@ -38,6 +38,8 @@ async def process_resume(
         # Process resume
         processor = ResumeProcessor()
         result = await processor.process_resume(pdf_bytes, job_description)
+
+        print(f"Processing result: {result}")
         
         return {
             "success": True,

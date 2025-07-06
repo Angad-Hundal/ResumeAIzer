@@ -7,8 +7,6 @@ app = FastAPI(
     description="API for processing resumes with job descriptions",
     version="0.1.0"
 )
-
-# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,7 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(resume.router, prefix="/api")
 
 @app.get("/")
