@@ -40,13 +40,22 @@ async def process_resume(
         result = await processor.process_resume(pdf_bytes, job_description)
 
         print(f"Processing result: {result}")
-        
-        return {
-            "success": True,
-            "filename": resume.filename,
-            "page_count": len(result["original_resume"]["pages"]),
-            "analysis": result["analysis"]
-        }
+
+        if result.get("status") == "success":
+            return {
+                "success": True,
+                "filename": resume.filename,
+                "page_count": len(result["original_resume"]["pages"]),
+                "analysis": result["analysis"]
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result.get("error", "Unknown error"),
+                    "suggestion": result.get("suggestion", "Check your API key and network connection")
+                }
+            )
         
     except HTTPException:
         raise

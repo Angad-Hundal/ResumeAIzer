@@ -2,8 +2,10 @@ import httpx
 import os
 import logging
 from typing import Optional
-from .models import DeepSeekRequest, DeepSeekResponse
+from .models import DeepSeekResponse
 from typing import Dict, Any
+from .prompt_template import PromptTemplates
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -19,33 +21,41 @@ class DeepSeekClient:
         resume_data: Dict[str, Any],
         job_description: str
     ) -> DeepSeekResponse:
-        """Send resume analysis request to DeepSeek API"""
-        payload = DeepSeekRequest(
-            resume_data=resume_data,
-            job_description=job_description
-        )
-
+        """Send resume analysis request to DeepSeek API using template prompt"""
+        prompt = PromptTemplates.get_analysis_template(resume_data, job_description)
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 2000
+        }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-
         try:
+            print("PAYLOAD: ", payload)  
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.api_base}/chat/completions",
-                    json=payload.dict(),
+                    json=payload,
                     headers=headers
                 )
-                response.raise_for_status()
                 json_response = response.json()
-                
-                return DeepSeekResponse(
-                    success=True,
-                    data=self._parse_response(json_response),
-                    usage=json_response.get("usage")
-                )
-                
+                if response.status_code == 200:
+                    parsed = self._parse_response(json_response)
+                    return DeepSeekResponse(
+                        success=True,
+                        data=parsed,
+                        usage=json_response.get("usage")
+                    )
+                else:
+                    error_msg = f"API error: {json_response}"
+                    logger.error(error_msg)
+                    return DeepSeekResponse(
+                        success=False,
+                        error=error_msg
+                    )
         except httpx.HTTPStatusError as e:
             error_msg = f"API error: {e.response.text}"
             logger.error(error_msg)
@@ -62,10 +72,20 @@ class DeepSeekClient:
             )
 
     def _parse_response(self, response: Dict) -> Dict[str, Any]:
-        """Parse and validate API response"""
+        """Parse and validate API response, extracting JSON from string if needed"""
         try:
             content = response["choices"][0]["message"]["content"]
-            return content if isinstance(content, dict) else {"raw": content}
-        except (KeyError, AttributeError) as e:
+            if isinstance(content, str):
+                # Remove markdown code fences if present
+                if content.strip().startswith('```json'):
+                    content = content.strip()[7:]
+                    if content.endswith('```'):
+                        content = content[:-3]
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    return {"raw": content}
+            return content
+        except (KeyError, AttributeError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to parse response: {str(e)}")
             return {"raw_response": response}
