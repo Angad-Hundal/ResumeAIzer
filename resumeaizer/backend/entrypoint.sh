@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ -f "/app/.env" ]; then
+    export $(grep -v '^#' /app/.env | xargs)
+fi
+
+exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload
