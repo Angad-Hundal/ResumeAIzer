@@ -1,8 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi import Depends
 from services.resume_processor import ResumeProcessor
 import logging
-from typing import Optional
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -32,12 +30,10 @@ async def process_resume(
                 detail="Job description cannot be empty"
             )
 
-        # Read file content
         pdf_bytes = await resume.read()
         
-        # Process resume
         processor = ResumeProcessor()
-        result = await processor.process_resume(pdf_bytes, job_description)
+        result = await processor.process_and_analyze_resume(pdf_bytes, job_description)
 
         print(f"Processing result: {result}")
 
