@@ -56,6 +56,8 @@ class GitHubMultiModelAnalyzer:
     async def get_market_trends(self, state) -> str:
         """Agent to fetch current market trends using GitHub-hosted GPT-4.1"""
         try:
+            print(f"Fetching market trends for job description")
+            logger.info(f"Fetching market trends for job description")
             job_description = state["job_description"]
             response = self.github_model_client.complete(
                 messages=[
@@ -76,7 +78,8 @@ class GitHubMultiModelAnalyzer:
                 model="openai/gpt-4.1"
             )
         
-                
+            print(f"Market trends response")
+            logger.info(f"Market trends response")
             return {**state,"market_trends": response.choices[0].message.content}
             
         except Exception as e:
@@ -89,6 +92,10 @@ class GitHubMultiModelAnalyzer:
             if not state['market_trends']:
                 raise ValueError("Market trends not available")
             
+            print(f"Analyzing resume with text")
+            logger.info(f"Analyzing resume with text")
+
+
             response = self.github_model_client.complete(
                 messages=[
                     SystemMessage("You are an expert resume analyst with 10+ years experience."),
@@ -126,6 +133,9 @@ class GitHubMultiModelAnalyzer:
             if not state['analysis']:
                 raise ValueError("Analysis not available")
             
+            print(f"Critiquing analysis")
+            logger.info(f"Critiquing analysis")
+            
             response = self.github_model_client.complete(
                 messages=[
                     SystemMessage("You are a senior hiring director with 15+ years experience."),
@@ -147,7 +157,7 @@ class GitHubMultiModelAnalyzer:
                             5. Final verdict on analysis quality""")
                 ],
                 temperature=0.1,
-                model="deepseek/DeepSeek-R1",
+                model="openai/gpt-4.1",
                 max_tokens=2048
             )
                 
@@ -165,8 +175,14 @@ class GitHubMultiModelAnalyzer:
                 **state,  # Preserve all fields
                 "decision": "end"  # LangGraph expects this key
                 }
-        
+        print(f"Evaluating satisfaction with critique")
+        logger.info(f"Evaluating satisfaction with critique")
+
         try:
+
+            print(f"Evaluating satisfaction with critique inside try block")
+            logger.info(f"Evaluating satisfaction with critique inside try block")
+
             if not state['critique']:
                 raise ValueError("No critique available for evaluation")
             
@@ -181,11 +197,11 @@ class GitHubMultiModelAnalyzer:
                         Respond ONLY with the number:""")
             ]
 
-            print(f"Evaluating satisfaction with messages: {messages}")
+            print(f"Evaluating satisfaction with messages")
             response = self.github_model_client.complete(messages=messages,
             temperature=0.1,
-            model="deepseek/DeepSeek-R1",
-            max_tokens=10)
+            model="openai/gpt-4.1",
+            max_tokens=2048)
             if not response or not response.choices or not response.choices[0].message:
                 raise ValueError("Invalid or empty response from LLM")
             
@@ -208,28 +224,19 @@ class GitHubMultiModelAnalyzer:
         
             logger.info(f"Satisfaction score: {score}% (Threshold: {self.satisfaction_threshold}%)")
 
-            if score >= self.satisfaction_threshold or state.get('iterations', 0) >= self.max_iterations:
+            if score >= self.satisfaction_threshold:
                 logger.info("Satisfaction threshold met, ending workflow")
-                return {
-                **state,
-                "satisfaction_score": score,
-                "decision": "end"}
+                return "end"
             else:
                 logger.info("Satisfaction threshold not met, continuing workflow")
                 state['iterations'] = state.get('iterations', 0) + 1
-                return {
-                **state,
-                "satisfaction_score": score,
-                "decision": "continue"}
+                return "continue"
             
         except Exception as e:
             logger.error(f"Error calculating satisfaction score: {str(e)}")
             state['last_error'] = f"Satisfaction score evaluation failed: {str(e)}"
             state['satisfaction_score'] = None
-            return {
-                **state,
-                "last_error": str(e),
-                "decision": "continue"}
+            return "continue"
 
     async def process_resume(self, resume_text: str, job_description: str) -> Dict[str, Any]:
         """Orchestrate the multi-agent analysis process"""
@@ -255,13 +262,13 @@ class GitHubMultiModelAnalyzer:
             workflow.add_edge("analyze_resume", "critique_analysis")
             
             workflow.add_conditional_edges(
-                "critique_analysis",
-                self.is_satisfactory,
-                {
-                    "continue": "analyze_resume",
-                    "end": END
-                }
-            )
+            "critique_analysis",
+            self.is_satisfactory,
+            {
+                "continue": "analyze_resume",
+                "end": END
+            }
+        )
             
             workflow.set_entry_point("get_market_trends")
             app = workflow.compile()
@@ -275,7 +282,7 @@ class GitHubMultiModelAnalyzer:
             return {
                 "status": "error",
                 "message": str(e),
-                "iterations": initial_state.get('iterations', 0)
+                "iterations": final_state.get('iterations', 0)
             }
 
     def _prepare_final_result(self, state: AgentState) -> Dict[str, Any]:
@@ -295,4 +302,6 @@ class GitHubMultiModelAnalyzer:
                 "warning": state['last_error']
             })
             
+        print(f"Final result prepared: {result}")
+        logger.info(f"Final result prepared: {result}")
         return result

@@ -289,6 +289,8 @@ class MultiModelResumeAnalyzer:
     
     def _prepare_final_result(self, state: AgentState) -> Dict[str, Any]:
         """Prepare the final result dictionary"""
+        print(f"Preparing final result with state: {state}")
+        logger.info(f"Preparing final result with state: {state}")
         result = {
             "analysis": state.get('analysis'),
             "critique": state.get('critique'),
