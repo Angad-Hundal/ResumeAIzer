@@ -85,11 +85,15 @@ class OpenAIClient:
             return OpenAIResponse(success=False, error=f"Failed to handle response: {str(e)}")
         
 
-    async def fix_base64_in_json(self, json_str):
-        pattern = r'("updated_resume"\s*:\s*")([A-Za-z0-9+/=\n\r]+)(")'
+    def fix_base64_in_json(self, json_str: str) -> str:
+        # Matches the base64 string associated with "updated_resume"
+        pattern = r'("updated_resume"\s*:\s*")([\s\S]*?)(")'
+        
         def replacer(match):
             key = match.group(1)
-            value = match.group(2).replace('\n', '').replace('\r', '')
+            value = match.group(2)
             end = match.group(3)
-            return f'{key}{value}{end}'
+            clean_value = re.sub(r'\s+', '', value)
+            return f'{key}{clean_value}{end}'
+
         return re.sub(pattern, replacer, json_str)

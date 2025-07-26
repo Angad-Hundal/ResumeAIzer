@@ -1,0 +1,51 @@
+.analysis {
+  margin-top: 40px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.analysis h2 {
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section h3 {
+  margin-bottom: 10px;
+  color: #444;
+}
+
+ul {
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.matched {
+  color: green;
+  font-weight: bold;
+}
+
+.missing {
+  color: red;
+  font-style: italic;
+}
+
+.suggestion {
+  color: #333;
+}
+
+.score-section {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+.score {
+  color: #007bff;
+  font-weight: bold;
+}

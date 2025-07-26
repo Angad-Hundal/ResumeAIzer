@@ -2,16 +2,30 @@ import React, { useState } from 'react';
 import './home.css';
 import ResumeUploader from '../resume_uploader/resume_uploader';
 import JobDescriptionInput from '../job_description/job_description';
+import Analysis from '../analysis/analysis';
+
+const downloadBase64Pdf = (base64Data, filename) => {
+  const linkSource = `data:application/pdf;base64,${base64Data}`;
+  const downloadLink = document.createElement('a');
+  downloadLink.href = linkSource;
+  downloadLink.download = filename;
+  downloadLink.click();
+};
 
 const Home = () => {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
+  const [analysisData, setAnalysisData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!resumeFile || !jobDescription.trim()) {
       alert('Please upload a resume and enter job description');
       return;
     }
+
+    setLoading(true);
+    setAnalysisData(null);
 
     const formData = new FormData();
     formData.append('resume', resumeFile);
@@ -29,11 +43,23 @@ const Home = () => {
 
       const result = await response.json();
       console.log('Backend response:', result);
-      // Handle successful response (will implement PDF download in next iteration)
+    
+      if (result.updated_resume) {
+        downloadBase64Pdf(result.updated_resume, result.filename || 'updated_resume.pdf');} 
+        else {
+        alert('Resume was processed but no updated PDF returned.');}
+      
+      if (result.analysis) {
+        setAnalysisData(result.analysis);
+      } else {
+        setAnalysisData(null);
+      }
 
     } catch (error) {
       console.error('Error:', error);
       alert('Error processing resume. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,14 +69,16 @@ const Home = () => {
       <div className="upload-container">
         <ResumeUploader onFileSelect={setResumeFile} />
         <JobDescriptionInput onDescriptionChange={setJobDescription} />
-        <button 
-          className="submit-button" 
+        <button
+          className="submit-button"
           onClick={handleSubmit}
-          disabled={!resumeFile || !jobDescription.trim()}
+          disabled={!resumeFile || !jobDescription.trim() || loading}
         >
-          Process Resume
+          {loading ? 'Processing...' : 'Process Resume'}
         </button>
       </div>
+
+      {analysisData && <Analysis data={analysisData} />}
     </div>
   );
 };
