@@ -6,10 +6,13 @@ import base64
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+PROVIDED_MODELS = ['github', 'huggingface']
+
 @router.post("/process")
 async def process_resume(
     resume: UploadFile = File(...),  
-    job_description: str = Form(...) 
+    job_description: str = Form(...),
+    model: str = Form("github")
 ):
     """
     Process resume PDF with job description
@@ -30,10 +33,16 @@ async def process_resume(
                 status_code=400,
                 detail="Job description cannot be empty"
             )
+        
+        if model not in PROVIDED_MODELS:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid model specified. Choose 'github' or 'huggingface'."
+            )
 
         pdf_bytes = await resume.read()
         processor = ResumeProcessor()
-        result = await processor.analyze_resume(pdf_bytes, job_description)
+        result = await processor.analyze_resume(pdf_bytes, job_description, model)
 
         print(f"Processing result: {result}")
         if result.get("status") == "success":
