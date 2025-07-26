@@ -1,83 +1,99 @@
-import httpx
 import os
 import logging
 import json
 from typing import Dict, Any
-from .models import OpenAIResponse 
+from .models import OpenAIResponse
 from .prompt_template import PromptTemplates
+import base64
+from io import BytesIO
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+from services.pdf_parser import extract_text_from_pdf
+import re
 
 logger = logging.getLogger(__name__)
 
 class OpenAIClient:
     def __init__(self):
-        self.api_base = "https://models.github.ai/inference"
+        self.api_base = "https://models.github.ai/inference"  
         self.model = "openai/gpt-4.1"
         self.api_key = os.getenv("GITHUB_TOKEN")
         if not self.api_key:
             raise ValueError("GitHub API key not configured")
+        
+        # Initialize Azure ChatCompletionsClient
+        self.client = ChatCompletionsClient(
+            endpoint=self.api_base,
+            credential=AzureKeyCredential(self.api_key)
+        )
 
-    async def analyze_resume(
-        self,
-        resume_data: Dict[str, Any],
-        job_description: str
-    ) -> OpenAIResponse: 
-        """Send resume analysis request to GitHub-hosted OpenAI model"""
-        prompt = PromptTemplates.get_analysis_template(resume_data, job_description)
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,
-            "max_tokens": 2000
-        }
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+    async def analyze_resume_with_llm(self, pdf_bytes: bytes, job_description: str) -> OpenAIResponse:
+        """Send resume analysis request to Azure-hosted OpenAI model"""
+
+        resume_text = extract_text_from_pdf(pdf_bytes)
+
+        
+        prompt = PromptTemplates.get_analysis_template(job_description)
+        full_prompt = f"{prompt}\n\nResume Content:\n{resume_text}"
+
+        system_message = SystemMessage("Resume Analysis System")
+        user_message = UserMessage(full_prompt)
+
         try:
-            print("HEADERS:", headers)
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.api_base}/chat/completions",
-                    json=payload,
-                    headers=headers
-                )
-                json_response = response.json()
-                print("Response JSON:", json.dumps(json_response, indent=2))
+            response = self.client.complete(
+                messages=[system_message, user_message],
+                temperature=0.3,
+                top_p=1,
+                model=self.model
+            )
 
-                if response.status_code == 200:
-                    parsed = self._parse_response(json_response)
-                    return OpenAIResponse( 
-                        success=True,
-                        data=parsed,
-                        usage=json_response.get("usage")
-                    )
-                else:
-                    error_msg = f"API error: {json_response}"
-                    logger.error(error_msg)
-                    return OpenAIResponse(success=False, error=error_msg)
-        except httpx.HTTPStatusError as e:
-            error_msg = f"API error: {e.response.text}"
-            logger.error(error_msg)
-            return OpenAIResponse(success=False, error=error_msg)
+            print(f"Response from Azure LLM: {response}")
+            return await self._handle_response(response)
+
         except Exception as e:
-            error_msg = f"Connection error: {str(e)}"
-            logger.error(error_msg)
-            return OpenAIResponse(success=False, error=error_msg)
+            logger.error(f"Connection error: {str(e)}")
+            return OpenAIResponse(success=False, error=str(e))
 
-    def _parse_response(self, response: Dict) -> Dict[str, Any]:
-        """Parse and validate API response, extracting JSON from string if needed"""
+    async def _handle_response(self, response) -> OpenAIResponse:
+        """Handle the response from the Azure LLM model"""
         try:
-            content = response["choices"][0]["message"]["content"]
+            content = response.choices[0].message.content
+            print(f"Raw response content: {content}")
+
             if isinstance(content, str):
                 if content.strip().startswith('```json'):
                     content = content.strip()[7:]
                     if content.endswith('```'):
                         content = content[:-3]
+                content = self.fix_base64_in_json(content)
                 try:
-                    return json.loads(content)
+                    print("INSIDE THE IF LOOPS")
+                    parsed = json.loads(content)
+                    if "updated_resume" in parsed.get("analysis", {}):
+                        print("Found updated_resume in parsed response")
+                        analysis = parsed.get("analysis", {})
+                        base64_pdf = analysis.get("updated_resume", "")
+                        decoded_pdf = base64.b64decode(base64_pdf)
+                        parsed["updated_resume"] = BytesIO(decoded_pdf)
+                    return OpenAIResponse(success=True, data=parsed)
                 except json.JSONDecodeError:
-                    return {"raw": content}
-            return content
-        except (KeyError, AttributeError, json.JSONDecodeError) as e:
-            logger.warning(f"Failed to parse response: {str(e)}")
-            return {"raw_response": response}
+                    return OpenAIResponse(success=False, error="Failed to decode JSON from response")
+            return OpenAIResponse(success=True, data={"raw_content": content})
+        except Exception as e:
+            logger.warning(f"Failed to parse the response: {str(e)}")
+            return OpenAIResponse(success=False, error=f"Failed to handle response: {str(e)}")
+        
+
+    def fix_base64_in_json(self, json_str: str) -> str:
+        # Matches the base64 string associated with "updated_resume"
+        pattern = r'("updated_resume"\s*:\s*")([\s\S]*?)(")'
+        
+        def replacer(match):
+            key = match.group(1)
+            value = match.group(2)
+            end = match.group(3)
+            clean_value = re.sub(r'\s+', '', value)
+            return f'{key}{clean_value}{end}'
+
+        return re.sub(pattern, replacer, json_str)
