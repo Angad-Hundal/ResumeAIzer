@@ -5,6 +5,7 @@ import logging
 from services.pdf_parser import extract_text_from_pdf
 from services.hugging_face.hugging_face_resume_analyzer import MultiModelResumeAnalyzer
 import asyncio
+from services.github_models.github_resume_analyzer import GitHubMultiModelAnalyzer
 
 # env_path = Path(__file__).resolve().parents[2] / '.env'
 # load_dotenv(env_path)
@@ -13,14 +14,8 @@ logger = logging.getLogger(__name__)
 class ResumeProcessor:
     def __init__(self):
         """Initialize with proper error handling"""
-        try:
-            self.analyzer = MultiModelResumeAnalyzer()
-            logger.info("Resume processor initialized successfully")
-        except Exception as e:
-            logger.critical(f"Failed to initialize: {str(e)}")
-            raise
 
-    async def analyze_resume(self, pdf_bytes: bytes, job_description: str) -> Dict[str, Any]:
+    async def analyze_resume(self, pdf_bytes: bytes, job_description: str, model: str) -> Dict[str, Any]:
         """
         Process a resume PDF with comprehensive error handling
         
@@ -48,7 +43,15 @@ class ResumeProcessor:
                 raise ValueError("Job description cannot be empty")
 
             text = await self._extract_text_safely(pdf_bytes)
-            return await self.analyzer.process_resume(text, job_description)
+
+            if model== "github":
+                print("Using GitHub model for resume analysis")
+                github_client = GitHubMultiModelAnalyzer()
+                return await github_client.process_resume(text, job_description)
+            elif model == "huggingface":
+                print("Using Hugging Face model for resume analysis")
+                hugging_face_analyzer = MultiModelResumeAnalyzer()
+                return await hugging_face_analyzer.process_resume(text, job_description)
             
         except ValueError as e:
             return self._format_error(str(e), "input_validation")

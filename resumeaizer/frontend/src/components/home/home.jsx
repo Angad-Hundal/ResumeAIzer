@@ -3,20 +3,22 @@ import './home.css';
 import ResumeUploader from '../resume_uploader/resume_uploader';
 import JobDescriptionInput from '../job_description/job_description';
 import Analysis from '../analysis/analysis';
+import ModelSelector from '../model_selector/model_selector';
 
-const downloadBase64Pdf = (base64Data, filename) => {
-  const linkSource = `data:application/pdf;base64,${base64Data}`;
-  const downloadLink = document.createElement('a');
-  downloadLink.href = linkSource;
-  downloadLink.download = filename;
-  downloadLink.click();
-};
+// const downloadBase64Pdf = (base64Data, filename) => {
+//   const linkSource = `data:application/pdf;base64,${base64Data}`;
+//   const downloadLink = document.createElement('a');
+//   downloadLink.href = linkSource;
+//   downloadLink.download = filename;
+//   downloadLink.click();
+// };
 
 const Home = () => {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('github'); 
 
   const handleSubmit = async () => {
     if (!resumeFile || !jobDescription.trim()) {
@@ -30,6 +32,7 @@ const Home = () => {
     const formData = new FormData();
     formData.append('resume', resumeFile);
     formData.append('job_description', jobDescription);
+    formData.append('model', selectedModel);
 
     try {
       const response = await fetch('http://localhost:8000/api/process', {
@@ -44,10 +47,10 @@ const Home = () => {
       const result = await response.json();
       console.log('Backend response:', result);
     
-      if (result.updated_resume) {
-        downloadBase64Pdf(result.updated_resume, result.filename || 'updated_resume.pdf');} 
-        else {
-        alert('Resume was processed but no updated PDF returned.');}
+      // if (result.updated_resume) {
+      //   // downloadBase64Pdf(result.updated_resume, result.filename || 'updated_resume.pdf');} 
+      //   else {
+      //   alert('Resume was processed but no updated PDF returned.');}
       
       if (result.analysis) {
         setAnalysisData(result.analysis);
@@ -65,10 +68,14 @@ const Home = () => {
 
   return (
     <div className="home">
-      <h1>Resume Customizer</h1>
+      <h1>Resume Analyzer</h1>
       <div className="upload-container">
         <ResumeUploader onFileSelect={setResumeFile} />
         <JobDescriptionInput onDescriptionChange={setJobDescription} />
+        <ModelSelector 
+          selectedModel={selectedModel} 
+          onModelChange={setSelectedModel} 
+        />
         <button
           className="submit-button"
           onClick={handleSubmit}
