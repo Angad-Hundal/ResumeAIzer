@@ -3,15 +3,24 @@ from typing import Dict, Any, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
 from dotenv import load_dotenv
 from pathlib import Path
 import logging
 import re
+import sys
 import asyncio
 
 # Load environment variables
-load_dotenv()
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    force=True 
+)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class AgentState(TypedDict):
     resume_text: str
@@ -25,7 +34,7 @@ class AgentState(TypedDict):
 
 class GitHubMultiModelAnalyzer:
     def __init__(self):
-        self.max_iterations = 3
+        self.max_iterations = 1
         self.satisfaction_threshold = 65  # 65% acceptance threshold
 
         self.api_base = "https://models.github.ai/inference"  
@@ -38,20 +47,20 @@ class GitHubMultiModelAnalyzer:
             credential=AzureKeyCredential(self.api_key)
         )
     
+    def _exit_with_error(self, error_message: str):
+        """Exit the program with rrro and the error message"""
+        logger.error(f"Critical error: {error_message}")
+        print(f"rrro: {error_message}")
+        sys.exit(1)
 
-    async def get_market_trends(self, job_description: str) -> str:
+    async def get_market_trends(self, state) -> str:
         """Agent to fetch current market trends using GitHub-hosted GPT-4.1"""
         try:
-            response = await self.github_model_client.path("/chat/completions").post({
-                "body": {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a market research analyst with access to real-time hiring data."
-                        },
-                        {
-                            "role": "user",
-                            "content": f"""Analyze current market trends for this role:
+            job_description = state["job_description"]
+            response = self.github_model_client.complete(
+                messages=[
+                    SystemMessage("You are a market research analyst with access to real-time hiring data."),
+                    UserMessage(f"""Analyze current market trends for this role:
                             
                             Job Description:
                             {job_description}
@@ -61,22 +70,18 @@ class GitHubMultiModelAnalyzer:
                             2. Salary range benchmarks
                             3. Hiring trends by region
                             4. Emerging technologies in this field
-                            5. Competitive landscape"""
-                        }
-                    ],
-                    "temperature": 0.3,
-                    "model": "openai/gpt-4.1"
-                }
-            })
-            
-            if response.status_code != 200:
-                raise ValueError(f"API request failed with status {response.status_code}")
+                            5. Competitive landscape""")
+                ],
+                temperature=0.3,
+                model="openai/gpt-4.1"
+            )
+        
                 
-            return {"market_trends": response.json()["choices"][0]["message"]["content"]}
+            return {**state,"market_trends": response.choices[0].message.content}
             
         except Exception as e:
             logger.error(f"Error fetching market trends: {str(e)}")
-            return {"market_trends": None, "last_error": str(e)}
+            return {**state, "market_trends": None, "last_error": str(e)}
 
     async def analyze_resume(self, state: AgentState) -> Dict[str, Any]:
         """Analyze resume using GitHub-hosted GPT-4.1"""
@@ -84,16 +89,10 @@ class GitHubMultiModelAnalyzer:
             if not state['market_trends']:
                 raise ValueError("Market trends not available")
             
-            response = await self.github_model_client.path("/chat/completions").post({
-                "body": {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": """You are an expert resume analyst with 10+ years experience."""
-                        },
-                        {
-                            "role": "user",
-                            "content": f"""
+            response = self.github_model_client.complete(
+                messages=[
+                    SystemMessage("You are an expert resume analyst with 10+ years experience."),
+                    UserMessage(f"""
                             JOB REQUIREMENTS:
                             {state['job_description']}
                             
@@ -108,22 +107,18 @@ class GitHubMultiModelAnalyzer:
                             2. Key strengths for this role
                             3. Critical gaps
                             4. Improvement recommendations
-                            5. Overall fit assessment"""
-                        }
-                    ],
-                    "temperature": 0.2,
-                    "model": "openai/gpt-4.1"
-                }
-            })
+                            5. Overall fit assessment""")
+                ],
+                temperature=0.2,
+                model="openai/gpt-4.1"
+            )
             
-            if response.status_code != 200:
-                raise ValueError(f"API request failed with status {response.status_code}")
                 
-            return {"analysis": response.json()["choices"][0]["message"]["content"]}
+            return {**state, "analysis": response.choices[0].message.content}
             
         except Exception as e:
             logger.error(f"Error analyzing resume: {str(e)}")
-            return {"analysis": None, "last_error": str(e)}
+            return {**state, "analysis": None, "last_error": str(e)}
 
     async def critique_analysis(self, state: AgentState) -> Dict[str, Any]:
         """Critique the analysis using GitHub-hosted DeepSeek-R1"""
@@ -131,16 +126,10 @@ class GitHubMultiModelAnalyzer:
             if not state['analysis']:
                 raise ValueError("Analysis not available")
             
-            response = await self.github_model_client.path("/chat/completions").post({
-                "body": {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": """You are a senior hiring director with 15+ years experience."""
-                        },
-                        {
-                            "role": "user",
-                            "content": f"""
+            response = self.github_model_client.complete(
+                messages=[
+                    SystemMessage("You are a senior hiring director with 15+ years experience."),
+                    UserMessage(f"""
                             JOB DESCRIPTION:
                             {state['job_description']}
                             
@@ -155,72 +144,92 @@ class GitHubMultiModelAnalyzer:
                             2. Missing critical elements
                             3. Market alignment issues
                             4. Suggested analysis improvements
-                            5. Final verdict on analysis quality"""
-                        }
-                    ],
-                    "temperature": 0.1,
-                    "model": "deepseek/DeepSeek-R1",
-                    "max_tokens": 2048
-                }
-            })
-            
-            if response.status_code != 200:
-                raise ValueError(f"API request failed with status {response.status_code}")
+                            5. Final verdict on analysis quality""")
+                ],
+                temperature=0.1,
+                model="deepseek/DeepSeek-R1",
+                max_tokens=2048
+            )
                 
-            return {"critique": response.json()["choices"][0]["message"]["content"]}
+            return {**state, "critique": response.choices[0].message.content}
             
         except Exception as e:
             logger.error(f"Error critiquing analysis: {str(e)}")
-            return {"critique": None, "last_error": str(e)}
+            return {**state, "critique": None, "last_error": str(e)}
 
     async def is_satisfactory(self, state: AgentState) -> str:
         """Determine if analysis meets quality threshold"""
-        if state['iterations'] >= self.max_iterations:
+        if state.get('iterations', 0) >= self.max_iterations:
             logger.info("Max iterations reached, ending workflow")
-            return "end"
+            return {
+                **state,  # Preserve all fields
+                "decision": "end"  # LangGraph expects this key
+                }
         
         try:
             if not state['critique']:
                 raise ValueError("No critique available for evaluation")
             
             # Get satisfaction score from LLM
-            response = await self.github_model_client.path("/chat/completions").post({
-                "body": {
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": """You are a quality assessment AI. Analyze the critique and 
-                            determine a satisfaction percentage (0-100). Respond ONLY with the number."""
-                        },
-                        {
-                            "role": "user",
-                            "content": f"""Critique to evaluate:
-                            {state['critique']}
-                            
-                            What percentage (0-100) indicates satisfaction?
-                            Respond ONLY with the number:"""
-                        }
-                    ],
-                    "temperature": 0.1,
-                    "model": "deepseek/DeepSeek-R1",
-                    "max_tokens": 10
-                }
-            })
+            messages=[
+                SystemMessage("""You are a quality assessment AI. Analyze the critique and 
+                        determine a satisfaction percentage (0-100). Respond ONLY with the number."""),
+                UserMessage(f"""Critique to evaluate:
+                        {state['critique']}
+                        
+                        What percentage (0-100) indicates satisfaction?
+                        Respond ONLY with the number:""")
+            ]
+
+            print(f"Evaluating satisfaction with messages: {messages}")
+            response = self.github_model_client.complete(messages=messages,
+            temperature=0.1,
+            model="deepseek/DeepSeek-R1",
+            max_tokens=10)
+            if not response or not response.choices or not response.choices[0].message:
+                raise ValueError("Invalid or empty response from LLM")
             
-            if response.status_code != 200:
-                raise ValueError(f"API request failed with status {response.status_code}")
                 
             # Extract numeric score from response
-            score_text = response.json()["choices"][0]["message"]["content"]
-            score = float(re.search(r'\d+', score_text).group())
-            state['satisfaction_score'] = score
+            score_text = response.choices[0].message.content
+            if not score_text:
+                raise ValueError("Empty response content")
             
+            match = re.search(r'\d+', score_text)
+            if not match:
+                raise ValueError(f"No numeric score found in response: '{score_text}'")
+            
+            score = float(match.group())
+
+            if not (0 <= score <= 100):
+                raise ValueError(f"Score out of range (0-100): {score}")
+            
+            state['satisfaction_score'] = score
+        
             logger.info(f"Satisfaction score: {score}% (Threshold: {self.satisfaction_threshold}%)")
-            return "end" if score >= self.satisfaction_threshold else "continue"
+
+            if score >= self.satisfaction_threshold or state.get('iterations', 0) >= self.max_iterations:
+                logger.info("Satisfaction threshold met, ending workflow")
+                return {
+                **state,
+                "satisfaction_score": score,
+                "decision": "end"}
+            else:
+                logger.info("Satisfaction threshold not met, continuing workflow")
+                state['iterations'] = state.get('iterations', 0) + 1
+                return {
+                **state,
+                "satisfaction_score": score,
+                "decision": "continue"}
             
         except Exception as e:
             logger.error(f"Error calculating satisfaction score: {str(e)}")
-            return "continue"
+            state['last_error'] = f"Satisfaction score evaluation failed: {str(e)}"
+            state['satisfaction_score'] = None
+            return {
+                **state,
+                "last_error": str(e),
+                "decision": "continue"}
 
     async def process_resume(self, resume_text: str, job_description: str) -> Dict[str, Any]:
         """Orchestrate the multi-agent analysis process"""
@@ -248,7 +257,10 @@ class GitHubMultiModelAnalyzer:
             workflow.add_conditional_edges(
                 "critique_analysis",
                 self.is_satisfactory,
-                {"continue": "analyze_resume", "end": END}
+                {
+                    "continue": "analyze_resume",
+                    "end": END
+                }
             )
             
             workflow.set_entry_point("get_market_trends")
