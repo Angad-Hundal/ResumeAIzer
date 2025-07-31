@@ -9,6 +9,7 @@ from pathlib import Path
 import logging
 import re
 import sys
+from typing import Tuple
 import asyncio
 
 # Load environment variables
@@ -167,14 +168,12 @@ class GitHubMultiModelAnalyzer:
             logger.error(f"Error critiquing analysis: {str(e)}")
             return {**state, "critique": None, "last_error": str(e)}
 
-    async def is_satisfactory(self, state: AgentState) -> str:
+    async def is_satisfactory(self, state: AgentState) -> Tuple[str, AgentState]:
         """Determine if analysis meets quality threshold"""
         if state.get('iterations', 0) >= self.max_iterations:
             logger.info("Max iterations reached, ending workflow")
-            return {
-                **state,  # Preserve all fields
-                "decision": "end"  # LangGraph expects this key
-                }
+            return "end"
+        
         print(f"Evaluating satisfaction with critique")
         logger.info(f"Evaluating satisfaction with critique")
 
@@ -237,7 +236,7 @@ class GitHubMultiModelAnalyzer:
             state['last_error'] = f"Satisfaction score evaluation failed: {str(e)}"
             state['satisfaction_score'] = None
             return "continue"
-
+        
     async def process_resume(self, resume_text: str, job_description: str) -> Dict[str, Any]:
         """Orchestrate the multi-agent analysis process"""
         try:
@@ -274,6 +273,8 @@ class GitHubMultiModelAnalyzer:
             app = workflow.compile()
             
             final_state = await app.ainvoke(initial_state)
+
+            print(f"Final state: {final_state}")
             
             return self._prepare_final_result(final_state)
             
@@ -282,7 +283,7 @@ class GitHubMultiModelAnalyzer:
             return {
                 "status": "error",
                 "message": str(e),
-                "iterations": final_state.get('iterations', 0)
+                "iterations": initial_state.get('iterations', 0)
             }
 
     def _prepare_final_result(self, state: AgentState) -> Dict[str, Any]:
