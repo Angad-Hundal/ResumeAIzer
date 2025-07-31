@@ -4,14 +4,7 @@ import ResumeUploader from '../resume_uploader/resume_uploader';
 import JobDescriptionInput from '../job_description/job_description';
 import Analysis from '../analysis/analysis';
 import ModelSelector from '../model_selector/model_selector';
-
-// const downloadBase64Pdf = (base64Data, filename) => {
-//   const linkSource = `data:application/pdf;base64,${base64Data}`;
-//   const downloadLink = document.createElement('a');
-//   downloadLink.href = linkSource;
-//   downloadLink.download = filename;
-//   downloadLink.click();
-// };
+import PopupAnalysis from '../popup_analysis/popup_analysis';
 
 const Home = () => {
   const [resumeFile, setResumeFile] = useState(null);
@@ -19,6 +12,8 @@ const Home = () => {
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('github'); 
+  const [apiResponse, setApiResponse] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   const handleSubmit = async () => {
     if (!resumeFile || !jobDescription.trim()) {
@@ -40,17 +35,21 @@ const Home = () => {
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to process resume');
-      }
-
       const result = await response.json();
       console.log('Backend response:', result);
-    
-      // if (result.updated_resume) {
-      //   // downloadBase64Pdf(result.updated_resume, result.filename || 'updated_resume.pdf');} 
-      //   else {
-      //   alert('Resume was processed but no updated PDF returned.');}
+
+      if (!response.ok) {
+        setApiResponse({
+          success: false,
+          error: result.error || 'Failed to process resume',
+          error_type: result.error_type || 'api_error'
+        });
+        setShowPopup(true);
+        return;
+      }
+
+      setApiResponse(result);
+      setShowPopup(true);
       
       if (result.analysis) {
         setAnalysisData(result.analysis);
@@ -60,11 +59,22 @@ const Home = () => {
 
     } catch (error) {
       console.error('Error:', error);
-      alert('Error processing resume. Please try again.');
+      setApiResponse({
+        success: false,
+        error: error.message || 'Error processing resume',
+        error_type: 'network_error'
+      });
+      setShowPopup(true);
     } finally {
       setLoading(false);
     }
   };
+
+  const closePopup = () => {
+    setShowPopup(false);
+    setApiResponse(null);
+  };
+
 
   return (
     <div className="home">
@@ -86,6 +96,10 @@ const Home = () => {
       </div>
 
       {analysisData && <Analysis data={analysisData} />}
+
+      {showPopup && apiResponse && (
+        <PopupAnalysis response={apiResponse} onClose={closePopup} />
+      )}
     </div>
   );
 };

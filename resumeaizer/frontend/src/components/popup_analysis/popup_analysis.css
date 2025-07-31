@@ -1,0 +1,86 @@
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.popup-overlay.success {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.popup-overlay.error {
+  background-color: rgba(139, 0, 0, 0.7);
+}
+
+.popup-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.popup-overlay.error .popup-content {
+  background-color: #ffebee;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+.popup-content h3 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.popup-overlay.error .popup-content h3 {
+  color: #c62828;
+}
+
+.error-message {
+  color: #c62828;
+  font-weight: bold;
+}
+
+.error-type {
+  font-style: italic;
+  color: #666;
+}
+
+.analysis-summary ul {
+  padding-left: 20px;
+}
+
+.analysis-summary li {
+  margin-bottom: 8px;
+}
+
+.critique-section, .market-trends {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.metrics {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  font-weight: bold;
+}
