@@ -1,7 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './popup_analysis.css';
 
 const PopupAnalysis = ({ response, onClose }) => {
+  const [expandedSections, setExpandedSections] = useState({
+    analysis: false,
+    critique: false,
+    marketTrends: false
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections((prevState) => ({
+      ...prevState,
+      [section]: !prevState[section],
+    }));
+  };
 
   console.log('PopupAnalysis response:', response);
   if (!response) return null;
@@ -19,23 +31,35 @@ const PopupAnalysis = ({ response, onClose }) => {
             <p><strong>File:</strong> {response.filename}</p>
 
             {response.analysis && (
-              <div className="analysis-summary">
-                <h4>Summary:</h4>
-                <div className="text-block">{response.analysis}</div>
+              <div className="expandable-section">
+                <button className="expand-toggle" onClick={() => toggleSection('analysis')}>
+                  {expandedSections.analysis ? 'Collapse' : 'Expand'} Summary
+                </button>
+                {expandedSections.analysis && (
+                  <div className="text-block">{response.analysis}</div>
+                )}
               </div>
             )}
 
             {response.critique && (
-              <div className="critique-section">
-                <h4>Critique:</h4>
-                <div className="text-block">{response.critique}</div>
+              <div className="expandable-section">
+                <button className="expand-toggle" onClick={() => toggleSection('critique')}>
+                  {expandedSections.critique ? 'Collapse' : 'Expand'} Critique
+                </button>
+                {expandedSections.critique && (
+                  <div className="text-block">{response.critique}</div>
+                )}
               </div>
             )}
 
             {response.market_trends && (
-              <div className="market-trends">
-                <h4>Market Trends:</h4>
-                <div className="text-block">{response.market_trends}</div>
+              <div className="expandable-section">
+                <button className="expand-toggle" onClick={() => toggleSection('marketTrends')}>
+                  {expandedSections.marketTrends ? 'Collapse' : 'Expand'} Market Trends
+                </button>
+                {expandedSections.marketTrends && (
+                  <div className="text-block">{response.market_trends}</div>
+                )}
               </div>
             )}
 

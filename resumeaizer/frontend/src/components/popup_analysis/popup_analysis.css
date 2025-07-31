@@ -1,39 +1,107 @@
+/* Popup Overlay */
 .popup-overlay {
-  position: fixed;
+  position: fixed;              /* Fix the overlay on screen */
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);  /* Darker background */
   display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
+  justify-content: center;        /* Center the content horizontally */
+  align-items: center;            /* Center the content vertically */
+  z-index: 999;                   /* Ensure it's above other content */
   overflow: auto;
+  animation: fadeIn 0.3s ease-out; /* Smooth fade-in */
 }
 
+/* Popup Content */
 .popup-content {
-  background: white;
-  padding: 20px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.25);
-  font-family: sans-serif;
+  background: #fff;
+  padding: 25px;
+  max-width: 700px;                /* Wider container */
+  max-height: 85vh;                /* Max height of the popup */
+  overflow-y: auto;                /* Scrollable content */
+  border-radius: 12px;             /* Rounded corners */
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Soft shadow */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Sleek font */
+  transition: transform 0.3s ease-out; /* Smooth transformation */
+  animation: slideIn 0.4s ease-out;    /* Slide-in animation */
 }
 
+/* Close Button */
 .close-button {
-  float: right;
-  font-size: 1.5em;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   background: none;
   border: none;
+  color: #333;
+  font-size: 1.7em;
   cursor: pointer;
+  transition: color 0.3s ease;
 }
 
+.close-button:hover {
+  color: #007bff; /* Change color on hover */
+  transform: scale(1.1); /* Slightly enlarge on hover */
+}
+
+/* Text Block */
 .text-block {
-  white-space: pre-wrap; /* keeps newlines, wraps long lines */
+  white-space: pre-wrap;       /* Keeps newlines, wraps long lines */
   word-wrap: break-word;
-  margin-bottom: 1em;
-  line-height: 1.5;
+  margin-bottom: 1.2em;
+  line-height: 1.6;
+  color: #333;                 /* Dark gray text for readability */
+  font-size: 1em;              /* Standard font size */
+  padding: 15px;
+  background-color: #f9f9f9;  /* Soft background */
+  border-radius: 8px;         /* Rounded corners */
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1); /* Inner shadow for depth */
+}
+
+/* Expandable Section Button */
+.expand-toggle {
+  background-color: #007bff; /* Blue background */
+  color: white;
+  padding: 8px 15px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  border-radius: 5px;
+  display: inline-block;
+  margin-bottom: 10px;
+  transition: background-color 0.3s ease, transform 0.2s ease-in-out;
+}
+
+.expand-toggle:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+  transform: scale(1.05); /* Slight scale effect on hover */
+}
+
+/* Expandable Section Content */
+.expandable-section {
+  margin-bottom: 15px;
+}
+
+/* Fade-in effect */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide-in effect for the popup */
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
