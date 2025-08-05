@@ -12,9 +12,8 @@ echo -e "${YELLOW}Stopping ResumeAIzer Kubernetes deployment...${NC}"
 if kubectl get namespace resumeaizer &> /dev/null; then
     # Delete all resources in the namespace
     echo -e "${YELLOW}Removing all deployments and services...${NC}"
-    kubectl delete -f frontend-deployment.yaml -n resumeaizer
-    kubectl delete -f backend-deployment.yaml -n resumeaizer
-    kubectl delete -f configmap.yaml -n resumeaizer
+    kubectl delete -f . -n resumeaizer
+
     
     # Delete the namespace
     echo -e "${YELLOW}Deleting resumeaizer namespace...${NC}"

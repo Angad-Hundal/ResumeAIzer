@@ -30,7 +30,7 @@ const Home = () => {
     formData.append('model', selectedModel);
 
     try {
-      const response = await fetch('http://localhost:8000/api/process', {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/process`, {
         method: 'POST',
         body: formData,
       });

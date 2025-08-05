@@ -25,6 +25,8 @@ spec:
           value: "0.0.0.0"
         - name: PORT
           value: "8000"
+        - name: PYTHONPATH
+          value: "/app"
         readinessProbe:
           httpGet:
             path: /docs
@@ -49,5 +51,5 @@ spec:
   ports:
   - port: 8000
     targetPort: 8000
-    nodePort: 30000
+    nodePort: 30080
   type: NodePort

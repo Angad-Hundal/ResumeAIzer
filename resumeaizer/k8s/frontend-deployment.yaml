@@ -18,12 +18,6 @@ spec:
         imagePullPolicy: Never
         ports:
         - containerPort: 3000
-        env:
-        - name: REACT_APP_BACKEND_URL
-          valueFrom:
-            configMapKeyRef:
-              name: resumeaizer-config
-              key: REACT_APP_BACKEND_URL
         resources:
           requests:
             memory: "128Mi"
@@ -45,4 +39,5 @@ spec:
   ports:
   - port: 80
     targetPort: 3000
-  type: LoadBalancer
+    nodePort: 30081
+  type: NodePort
